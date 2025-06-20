@@ -8,7 +8,4 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true
   },
-  optimizeDeps: {
-    // example: include: ['some-package']
-  }
 });
