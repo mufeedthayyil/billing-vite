@@ -8,6 +8,9 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
+  address?: string;
+  createdAt?: string;
 }
 
 // Mock user data (to be replaced with actual authentication)
@@ -17,14 +20,19 @@ const MOCK_USERS = [
     name: 'Admin User',
     email: 'admin@example.com',
     password: 'admin123',
-    role: 'admin' as UserRole
+    role: 'admin' as UserRole,
+    phone: '+91 9876543210',
+    createdAt: '2025-01-01'
   },
   {
     id: '2',
-    name: 'Customer User',
+    name: 'Priya Patel',
     email: 'customer@example.com',
     password: 'customer123',
-    role: 'customer' as UserRole
+    role: 'customer' as UserRole,
+    phone: '+91 8765432109',
+    address: '456 Park Street, Mumbai, Maharashtra',
+    createdAt: '2025-03-20'
   }
 ];
 
@@ -33,9 +41,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  register: (name: string, email: string, password: string, role: UserRole) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
 }
 
 // Create context
@@ -51,7 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedUser = localStorage.getItem('photobill_user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('photobill_user');
@@ -61,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Login function
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     
     try {
@@ -70,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Find user (in a real app this would be an API call)
       const foundUser = MOCK_USERS.find(
-        u => u.email === email && u.password === password
+        u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
       );
       
       if (foundUser) {
@@ -78,13 +88,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { password: _, ...userWithoutPassword } = foundUser;
         setUser(userWithoutPassword);
         localStorage.setItem('photobill_user', JSON.stringify(userWithoutPassword));
-        return true;
+        return { success: true };
       }
       
-      return false;
+      return { success: false, error: 'Invalid email or password' };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return { success: false, error: 'An error occurred during login' };
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Register function (mock implementation)
-  const register = async (name: string, email: string, password: string, role: UserRole): Promise<boolean> => {
+  const register = async (
+    name: string, 
+    email: string, 
+    password: string, 
+    role: UserRole
+  ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     
     try {
@@ -105,29 +120,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // Check if user already exists
-      const userExists = MOCK_USERS.some(u => u.email === email);
+      const userExists = MOCK_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
       
       if (userExists) {
-        return false;
+        return { success: false, error: 'An account with this email already exists' };
+      }
+      
+      // Validate input
+      if (!name.trim()) {
+        return { success: false, error: 'Name is required' };
+      }
+      
+      if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+        return { success: false, error: 'Valid email is required' };
+      }
+      
+      if (password.length < 6) {
+        return { success: false, error: 'Password must be at least 6 characters' };
       }
       
       // In a real app, this would create a user in the database
-      // For demo purposes, we'll just simulate success
       const newUser = {
         id: `${MOCK_USERS.length + 1}`,
-        name,
-        email,
-        role
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        role,
+        createdAt: new Date().toISOString().split('T')[0]
       };
       
       setUser(newUser);
       localStorage.setItem('photobill_user', JSON.stringify(newUser));
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
-      return false;
+      return { success: false, error: 'An error occurred during registration' };
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Update profile function
+  const updateProfile = async (userData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      return { success: false, error: 'No user logged in' };
+    }
+
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('photobill_user', JSON.stringify(updatedUser));
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Profile update error:', error);
+      return { success: false, error: 'Failed to update profile' };
     }
   };
 
@@ -137,7 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     login,
     logout,
-    register
+    register,
+    updateProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

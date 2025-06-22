@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Printer, CreditCard, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Printer, CreditCard, CheckCircle, Download, Calendar, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Alert from '../../components/ui/Alert';
 import { mockBills } from '../../data/mockData';
-import { formatCurrency, formatDate, getPaymentStatusClass } from '../../lib/utils';
+import { formatCurrency, formatDate, getPaymentStatusClass, isOverdue } from '../../lib/utils';
 
 const BillDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [isPaymentComplete, setIsPaymentComplete] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
   
   // Find the bill
   const bill = mockBills.find(bill => bill.id === id);
@@ -24,7 +25,7 @@ const BillDetails: React.FC = () => {
   
   if (!bill) {
     return (
-      <div className="py-8 text-center">
+      <div className="py-8 text-center animate-fade-in">
         <h2 className="text-xl font-bold text-gray-900">Bill Not Found</h2>
         <p className="mt-2 text-gray-600">The bill you're looking for doesn't exist.</p>
         <Link to="/customer/bills" className="inline-block mt-4">
@@ -38,15 +39,47 @@ const BillDetails: React.FC = () => {
   
   // Calculate remaining amount
   const remainingAmount = bill.total - bill.amountPaid;
+  const isOverdueBill = isOverdue(bill.dueDate) && bill.paymentStatus !== 'paid';
   
   const handlePayNow = () => {
+    setPaymentError('');
     setIsPaymentProcessing(true);
     
-    // Simulate payment processing
+    // Simulate payment processing with potential failure
     setTimeout(() => {
       setIsPaymentProcessing(false);
-      setIsPaymentComplete(true);
+      
+      // Simulate 90% success rate
+      if (Math.random() > 0.1) {
+        setIsPaymentComplete(true);
+      } else {
+        setPaymentError('Payment failed. Please try again or contact support.');
+      }
     }, 2000);
+  };
+  
+  const handlePrintBill = () => {
+    // In a real app, this would generate a PDF or open print dialog
+    window.print();
+  };
+  
+  const handleDownloadBill = () => {
+    // In a real app, this would generate and download a PDF
+    const billData = `
+Bill Number: ${bill.billNumber}
+Client: ${bill.clientName}
+Date: ${formatDate(bill.issueDate)}
+Total: ${formatCurrency(bill.total)}
+Status: ${bill.paymentStatus}
+    `.trim();
+    
+    const blob = new Blob([billData], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${bill.billNumber}.txt`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
   
   return (
@@ -55,7 +88,7 @@ const BillDetails: React.FC = () => {
       <div className="mb-6">
         <Link 
           to="/customer/bills" 
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900"
+          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft size={16} className="mr-1" />
           <span>Back to Bills</span>
@@ -66,20 +99,48 @@ const BillDetails: React.FC = () => {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bill #{bill.billNumber}</h1>
-          <p className="text-gray-600 mt-1">
-            Issued on {formatDate(bill.issueDate)}
-          </p>
+          <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
+            <span>Issued on {formatDate(bill.issueDate)}</span>
+            <span>•</span>
+            <span className={isOverdueBill ? 'text-error-600 font-medium' : ''}>
+              Due {formatDate(bill.dueDate)}
+              {isOverdueBill && ' (Overdue)'}
+            </span>
+          </div>
         </div>
         
         <div className="mt-4 sm:mt-0 flex space-x-3">
           <Button 
             variant="outline" 
+            size="sm"
+            onClick={handleDownloadBill}
+            icon={<Download size={16} />}
+          >
+            Download
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handlePrintBill}
             icon={<Printer size={16} />}
           >
             Print
           </Button>
         </div>
       </div>
+      
+      {/* Overdue warning */}
+      {isOverdueBill && !isPaymentComplete && (
+        <div className="mb-6">
+          <Alert 
+            variant="error"
+            title="Payment Overdue"
+            icon={<AlertTriangle size={18} />}
+          >
+            <p>This bill is overdue. Please make the payment as soon as possible to avoid any service interruptions.</p>
+          </Alert>
+        </div>
+      )}
       
       {/* Payment status */}
       <div className="mb-6">
@@ -97,6 +158,11 @@ const BillDetails: React.FC = () => {
                       ? 'Paid' 
                       : bill.paymentStatus.charAt(0).toUpperCase() + bill.paymentStatus.slice(1)}
                   </Badge>
+                  {isOverdueBill && (
+                    <Badge className="ml-2 bg-error-100 text-error-800" size="sm">
+                      Overdue
+                    </Badge>
+                  )}
                 </div>
               </div>
               
@@ -131,9 +197,9 @@ const BillDetails: React.FC = () => {
             icon={<CreditCard size={18} />}
           >
             {bill.type === 'advance' ? (
-              <p>This is an advance payment for your upcoming photography session. This covers the rental equipment costs.</p>
+              <p>This is an advance payment for your upcoming photography session. This covers the rental equipment costs and secures your booking.</p>
             ) : (
-              <p>This is the final payment for your photography services. The advance amount has already been applied to your total.</p>
+              <p>This is the final payment for your photography services. {bill.amountPaid > 0 && `The advance amount of ${formatCurrency(bill.amountPaid)} has already been applied to your total.`}</p>
             )}
           </Alert>
         </div>
@@ -147,7 +213,20 @@ const BillDetails: React.FC = () => {
             title="Payment Successful"
             icon={<CheckCircle size={18} />}
           >
-            <p>Your payment of {formatCurrency(remainingAmount)} has been processed successfully. Thank you!</p>
+            <p>Your payment of {formatCurrency(remainingAmount)} has been processed successfully. Thank you for your business!</p>
+          </Alert>
+        </div>
+      )}
+      
+      {/* Payment error message */}
+      {paymentError && (
+        <div className="mb-6">
+          <Alert 
+            variant="error"
+            title="Payment Failed"
+            onClose={() => setPaymentError('')}
+          >
+            <p>{paymentError}</p>
           </Alert>
         </div>
       )}
@@ -165,67 +244,87 @@ const BillDetails: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Bill Information</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex justify-between">
+              <h3 className="text-sm font-medium text-gray-500 mb-3">Bill Information</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
                   <span className="text-gray-600">Bill Number:</span>
                   <span className="font-medium">{bill.billNumber}</span>
-                </li>
-                <li className="flex justify-between">
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Issue Date:</span>
                   <span className="font-medium">{formatDate(bill.issueDate)}</span>
-                </li>
-                <li className="flex justify-between">
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Due Date:</span>
-                  <span className="font-medium">{formatDate(bill.dueDate)}</span>
-                </li>
-                <li className="flex justify-between">
+                  <span className={`font-medium ${isOverdueBill ? 'text-error-600' : ''}`}>
+                    {formatDate(bill.dueDate)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Bill Type:</span>
-                  <span className="font-medium">{bill.type === 'advance' ? 'Advance Payment' : 'Final Payment'}</span>
-                </li>
-              </ul>
+                  <span className="font-medium">
+                    {bill.type === 'advance' ? 'Advance Payment' : 'Final Payment'}
+                  </span>
+                </div>
+              </div>
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Details</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex justify-between">
+              <h3 className="text-sm font-medium text-gray-500 mb-3">Payment Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-medium">{formatCurrency(bill.subtotal)}</span>
+                </div>
+                {bill.tax > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tax:</span>
+                    <span className="font-medium">{formatCurrency(bill.tax)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
                   <span className="text-gray-600">Total Amount:</span>
                   <span className="font-medium">{formatCurrency(bill.total)}</span>
-                </li>
-                <li className="flex justify-between">
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">Paid Amount:</span>
-                  <span className="font-medium">{formatCurrency(isPaymentComplete ? bill.total : bill.amountPaid)}</span>
-                </li>
-                <li className="flex justify-between">
+                  <span className="font-medium text-success-600">
+                    {formatCurrency(isPaymentComplete ? bill.total : bill.amountPaid)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-2">
                   <span className="text-gray-600">Remaining:</span>
-                  <span className="font-medium">{formatCurrency(isPaymentComplete ? 0 : remainingAmount)}</span>
-                </li>
-              </ul>
+                  <span className={`font-medium ${remainingAmount > 0 && !isPaymentComplete ? 'text-error-600' : 'text-success-600'}`}>
+                    {formatCurrency(isPaymentComplete ? 0 : remainingAmount)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           
           <h3 className="text-sm font-medium text-gray-500 mb-4">Bill Items</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bill.items.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {bill.items.map(item => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           
           <div className="mt-6 border-t border-gray-200 pt-4">
             <div className="flex justify-between mb-2">
@@ -238,7 +337,7 @@ const BillDetails: React.FC = () => {
                 <span>{formatCurrency(bill.tax)}</span>
               </div>
             )}
-            <div className="flex justify-between text-lg font-bold">
+            <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
               <span>Total:</span>
               <span>{formatCurrency(bill.total)}</span>
             </div>
@@ -247,7 +346,7 @@ const BillDetails: React.FC = () => {
           {bill.notes && (
             <div className="mt-6 border-t border-gray-200 pt-4">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
-              <p className="text-sm text-gray-600">{bill.notes}</p>
+              <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">{bill.notes}</p>
             </div>
           )}
           
@@ -260,7 +359,10 @@ const BillDetails: React.FC = () => {
               <div className="bg-gray-50 p-4 rounded-md">
                 <div className="flex justify-between mb-2">
                   <span className="text-sm text-gray-600">Bill Number:</span>
-                  <Link to={`/customer/bills/${relatedBill.id}`} className="text-sm font-medium text-primary-600 hover:text-primary-700">
+                  <Link 
+                    to={`/customer/bills/${relatedBill.id}`} 
+                    className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
+                  >
                     {relatedBill.billNumber}
                   </Link>
                 </div>
@@ -283,7 +385,7 @@ const BillDetails: React.FC = () => {
         </CardContent>
         
         {/* Payment action */}
-        {!isPaymentComplete && bill.paymentStatus !== 'paid' && (
+        {!isPaymentComplete && bill.paymentStatus !== 'paid' && remainingAmount > 0 && (
           <CardFooter className="border-t border-gray-200 bg-gray-50 p-6">
             <div className="w-full flex flex-col sm:flex-row sm:justify-between sm:items-center">
               <div className="mb-4 sm:mb-0">
@@ -300,8 +402,9 @@ const BillDetails: React.FC = () => {
                 icon={<CreditCard size={18} />}
                 onClick={handlePayNow}
                 isLoading={isPaymentProcessing}
+                disabled={isPaymentProcessing}
               >
-                Pay Now
+                {isPaymentProcessing ? 'Processing...' : 'Pay Now'}
               </Button>
             </div>
           </CardFooter>

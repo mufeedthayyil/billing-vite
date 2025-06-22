@@ -5,6 +5,7 @@ export interface Equipment {
   category: string;
   rentalCost: number;
   description: string;
+  isAvailable?: boolean;
 }
 
 export interface Client {
@@ -13,6 +14,7 @@ export interface Client {
   email: string;
   phone: string;
   address: string;
+  createdAt?: string;
 }
 
 export type BillStatus = 'draft' | 'sent' | 'paid' | 'overdue';
@@ -25,6 +27,7 @@ export interface BillItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  equipmentId?: string;
 }
 
 export interface Bill {
@@ -44,6 +47,8 @@ export interface Bill {
   notes?: string;
   type: BillType;
   relatedBillId?: string; // For linking advance and final bills
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Mock data
@@ -53,35 +58,40 @@ export const mockEquipment: Equipment[] = [
     name: 'Canon EOS R5',
     category: 'Camera',
     rentalCost: 4000,
-    description: 'Professional mirrorless camera with 45MP sensor'
+    description: 'Professional mirrorless camera with 45MP sensor',
+    isAvailable: true
   },
   {
     id: '2',
     name: 'Sony A7 III',
     category: 'Camera',
     rentalCost: 3500,
-    description: 'Full-frame mirrorless camera with excellent low-light performance'
+    description: 'Full-frame mirrorless camera with excellent low-light performance',
+    isAvailable: true
   },
   {
     id: '3',
     name: 'Canon 24-70mm f/2.8L',
     category: 'Lens',
     rentalCost: 1500,
-    description: 'Professional standard zoom lens'
+    description: 'Professional standard zoom lens',
+    isAvailable: true
   },
   {
     id: '4',
     name: 'Godox AD200 Flash Kit',
     category: 'Lighting',
     rentalCost: 1200,
-    description: 'Portable flash kit with accessories'
+    description: 'Portable flash kit with accessories',
+    isAvailable: true
   },
   {
     id: '5',
     name: 'DJI Ronin RS2',
     category: 'Stabilizer',
     rentalCost: 2000,
-    description: 'Professional camera stabilizer'
+    description: 'Professional camera stabilizer',
+    isAvailable: true
   }
 ];
 
@@ -91,21 +101,24 @@ export const mockClients: Client[] = [
     name: 'Rahul Sharma',
     email: 'rahul@example.com',
     phone: '+91 9876543210',
-    address: '123 MG Road, Bangalore, Karnataka'
+    address: '123 MG Road, Bangalore, Karnataka',
+    createdAt: '2025-03-15'
   },
   {
     id: '2',
     name: 'Priya Patel',
     email: 'priya@example.com',
     phone: '+91 8765432109',
-    address: '456 Park Street, Mumbai, Maharashtra'
+    address: '456 Park Street, Mumbai, Maharashtra',
+    createdAt: '2025-03-20'
   },
   {
     id: '3',
     name: 'Amit Singh',
     email: 'amit@example.com',
     phone: '+91 7654321098',
-    address: '789 Connaught Place, New Delhi, Delhi'
+    address: '789 Connaught Place, New Delhi, Delhi',
+    createdAt: '2025-03-25'
   }
 ];
 
@@ -123,7 +136,8 @@ export const mockBills: Bill[] = [
         description: 'Equipment Rental Advance - Wedding Photography',
         quantity: 1,
         unitPrice: 4000,
-        total: 4000
+        total: 4000,
+        equipmentId: '1'
       }
     ],
     subtotal: 4000,
@@ -134,7 +148,9 @@ export const mockBills: Bill[] = [
     paymentStatus: 'paid',
     notes: 'Advance payment for wedding photography session on April 15, 2025',
     type: 'advance',
-    relatedBillId: '2'
+    relatedBillId: '2',
+    createdAt: '2025-04-01',
+    updatedAt: '2025-04-01'
   },
   {
     id: '2',
@@ -160,7 +176,9 @@ export const mockBills: Bill[] = [
     paymentStatus: 'partial',
     notes: 'Final payment for wedding photography session held on April 15, 2025. Advance of ₹4000 already paid.',
     type: 'final',
-    relatedBillId: '1'
+    relatedBillId: '1',
+    createdAt: '2025-04-16',
+    updatedAt: '2025-04-16'
   },
   {
     id: '3',
@@ -175,7 +193,8 @@ export const mockBills: Bill[] = [
         description: 'Equipment Rental Advance - Product Photography',
         quantity: 1,
         unitPrice: 3000,
-        total: 3000
+        total: 3000,
+        equipmentId: '2'
       }
     ],
     subtotal: 3000,
@@ -186,7 +205,9 @@ export const mockBills: Bill[] = [
     paymentStatus: 'unpaid',
     notes: 'Advance payment for product photography session on April 20, 2025',
     type: 'advance',
-    relatedBillId: '4'
+    relatedBillId: '4',
+    createdAt: '2025-04-05',
+    updatedAt: '2025-04-05'
   },
   {
     id: '4',
@@ -212,7 +233,9 @@ export const mockBills: Bill[] = [
     paymentStatus: 'unpaid',
     notes: 'Final payment for product photography session to be held on April 20, 2025',
     type: 'final',
-    relatedBillId: '3'
+    relatedBillId: '3',
+    createdAt: '2025-04-21',
+    updatedAt: '2025-04-21'
   }
 ];
 
@@ -241,4 +264,34 @@ export const getDashboardStats = (role: 'admin' | 'customer', userId?: string) =
     totalRevenue,
     pendingRevenue
   };
+};
+
+// Utility functions for bill management
+export const generateBillNumber = (type: BillType, clientId: string): string => {
+  const year = new Date().getFullYear();
+  const clientNumber = clientId.padStart(3, '0');
+  const suffix = type === 'advance' ? 'A' : 'F';
+  const billCount = mockBills.filter(bill => 
+    bill.clientId === clientId && 
+    bill.type === type &&
+    bill.issueDate.startsWith(year.toString())
+  ).length + 1;
+  
+  return `INV-${year}-${clientNumber}-${billCount.toString().padStart(2, '0')}-${suffix}`;
+};
+
+export const calculateBillTotals = (items: BillItem[], taxRate: number = 0) => {
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const tax = subtotal * (taxRate / 100);
+  const total = subtotal + tax;
+  
+  return { subtotal, tax, total };
+};
+
+export const getOverdueBills = () => {
+  const today = new Date();
+  return mockBills.filter(bill => {
+    const dueDate = new Date(bill.dueDate);
+    return dueDate < today && bill.paymentStatus !== 'paid';
+  });
 };
