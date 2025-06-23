@@ -1,106 +1,104 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
 
-// Layouts
-import AdminLayout from './components/layouts/AdminLayout';
-import CustomerLayout from './components/layouts/CustomerLayout';
-import AuthLayout from './components/layouts/AuthLayout';
+// Layout
+import Header from './components/layout/Header';
 
-// Pages
+// Public pages
+import Home from './pages/public/Home';
+import Cart from './pages/public/Cart';
+import Suggestions from './pages/public/Suggestions';
+
+// Auth pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import AdminDashboard from './pages/admin/Dashboard';
-import EquipmentManager from './pages/admin/EquipmentManager';
-import BillingManager from './pages/admin/BillingManager';
-import ClientManager from './pages/admin/ClientManager';
-import CustomerDashboard from './pages/customer/Dashboard';
-import Bills from './pages/customer/Bills';
-import BillDetails from './pages/customer/BillDetails';
-import Profile from './pages/shared/Profile';
-import NotFound from './pages/shared/NotFound';
 
-// Route guards
+// Staff pages
+import Dashboard from './pages/staff/Dashboard';
+import Orders from './pages/staff/Orders';
+
+// Admin pages
+import AdminPanel from './pages/admin/AdminPanel';
+
+// Protected route component
 const ProtectedRoute: React.FC<{
   element: React.ReactElement;
-  requiredRole?: string;
+  requiredRole?: 'admin' | 'staff';
 }> = ({ element, requiredRole }) => {
   const { user, isAuthenticated } = useAuth();
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Login />;
   }
   
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    );
   }
   
   return element;
 };
 
 function App() {
-  const { isAuthenticated, user } = useAuth();
-
   return (
-    <Routes>
-      {/* Auth routes */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-      </Route>
-      
-      {/* Admin routes */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute
-            element={<AdminLayout />}
-            requiredRole="admin"
+    <CartProvider>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/suggestions" element={<Suggestions />} />
+          
+          {/* Auth routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          {/* Staff routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute
+                element={<Dashboard />}
+                requiredRole="staff"
+              />
+            }
           />
-        }
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="equipment" element={<EquipmentManager />} />
-        <Route path="billing" element={<BillingManager />} />
-        <Route path="clients" element={<ClientManager />} />
-        <Route path="profile" element={<Profile />} />
-      </Route>
-      
-      {/* Customer routes */}
-      <Route
-        path="/customer"
-        element={
-          <ProtectedRoute
-            element={<CustomerLayout />}
-            requiredRole="customer"
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute
+                element={<Orders />}
+                requiredRole="staff"
+              />
+            }
           />
-        }
-      >
-        <Route index element={<CustomerDashboard />} />
-        <Route path="bills" element={<Bills />} />
-        <Route path="bills/:id" element={<BillDetails />} />
-        <Route path="profile" element={<Profile />} />
-      </Route>
-      
-      {/* Root redirect */}
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            user?.role === 'admin' ? (
-              <Navigate to="/admin" replace />
-            ) : (
-              <Navigate to="/customer" replace />
-            )
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+          
+          {/* Admin routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute
+                element={<AdminPanel />}
+                requiredRole="admin"
+              />
+            }
+          />
+          
+          {/* 404 */}
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </div>
+    </CartProvider>
   );
 }
 
