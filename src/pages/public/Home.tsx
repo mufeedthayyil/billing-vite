@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter } from 'lucide-react';
-import { Equipment, equipmentService } from '../../lib/supabase';
+import { Search, Filter, AlertCircle } from 'lucide-react';
+import { Equipment, equipmentService, testConnection } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import EquipmentCard from '../../components/equipment/EquipmentCard';
 import Input from '../../components/ui/Input';
+import Alert from '../../components/ui/Alert';
 
 const Home: React.FC = () => {
+  const { connectionStatus } = useAuth();
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,10 +26,18 @@ const Home: React.FC = () => {
   const loadEquipment = async () => {
     try {
       setIsLoading(true);
+      setError(null);
+      
+      // Test connection first
+      const connectionTest = await testConnection();
+      if (!connectionTest.success) {
+        throw new Error(connectionTest.message);
+      }
+      
       const data = await equipmentService.getAll();
       setEquipment(data);
-    } catch (err) {
-      setError('Failed to load equipment. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to load equipment. Please try again.');
       console.error('Error loading equipment:', err);
     } finally {
       setIsLoading(false);
@@ -64,6 +75,32 @@ const Home: React.FC = () => {
     setFilteredEquipment(filtered);
   };
 
+  // Show connection status if there's an issue
+  if (connectionStatus && !connectionStatus.success) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Alert variant="error" className="mb-6">
+            <div className="flex items-center">
+              <AlertCircle size={20} className="mr-2" />
+              <div>
+                <h3 className="font-medium">Database Connection Error</h3>
+                <p className="text-sm mt-1">{connectionStatus.message}</p>
+                <p className="text-sm mt-1">Please check your Supabase configuration and try again.</p>
+              </div>
+            </div>
+          </Alert>
+          <button
+            onClick={loadEquipment}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -81,15 +118,21 @@ const Home: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={loadEquipment}
-              className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-            >
-              Try Again
-            </button>
-          </div>
+          <Alert variant="error" className="mb-6">
+            <div className="flex items-center">
+              <AlertCircle size={20} className="mr-2" />
+              <div>
+                <h3 className="font-medium">Error Loading Equipment</h3>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            </div>
+          </Alert>
+          <button
+            onClick={loadEquipment}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -108,6 +151,16 @@ const Home: React.FC = () => {
             Perfect for photographers, videographers, and content creators.
           </p>
         </div>
+
+        {/* Connection Status */}
+        {connectionStatus && connectionStatus.success && (
+          <Alert variant="success" className="mb-6">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              <span className="text-sm">Connected to database successfully</span>
+            </div>
+          </Alert>
+        )}
 
         {/* Search and Filters */}
         <div className="mb-8 flex flex-col sm:flex-row gap-4">
@@ -157,6 +210,14 @@ const Home: React.FC = () => {
                 ? 'Try adjusting your search or filters'
                 : 'No equipment available at the moment'}
             </p>
+            {equipment.length === 0 && (
+              <button
+                onClick={loadEquipment}
+                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+              >
+                Reload Equipment
+              </button>
+            )}
           </div>
         )}
       </div>

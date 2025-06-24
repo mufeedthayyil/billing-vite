@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Camera, Shield, Users } from 'lucide-react';
+import { User, Mail, Lock, Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -13,9 +13,9 @@ const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'customer' | 'staff' | 'admin'>('customer');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,6 +26,7 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -36,14 +37,31 @@ const Register: React.FC = () => {
       setError('Password must be at least 6 characters long');
       return;
     }
+
+    if (!name.trim()) {
+      setError('Name is required');
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      const result = await register(name, email, password, role);
+      const result = await register(name.trim(), email, password);
       
       if (!result.success) {
         setError(result.error || 'Registration failed');
+      } else {
+        if (result.error) {
+          // This means registration succeeded but email verification is required
+          setSuccess(result.error);
+        } else {
+          setSuccess('Registration successful! You can now sign in.');
+          // Clear form
+          setName('');
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+        }
       }
     } catch (err) {
       setError('An error occurred. Please try again later.');
@@ -76,6 +94,16 @@ const Register: React.FC = () => {
               onClose={() => setError('')}
             >
               {error}
+            </Alert>
+          )}
+
+          {success && (
+            <Alert
+              variant="success"
+              className="mb-4"
+              onClose={() => setSuccess('')}
+            >
+              {success}
             </Alert>
           )}
           
@@ -112,7 +140,7 @@ const Register: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="new-password"
-              placeholder="Create a password"
+              placeholder="Create a password (min 6 characters)"
               icon={<Lock className="h-5 w-5 text-gray-400" />}
             />
             
@@ -128,67 +156,13 @@ const Register: React.FC = () => {
               icon={<Lock className="h-5 w-5 text-gray-400" />}
             />
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Account type
-              </label>
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  className={`w-full flex items-center justify-start p-3 border rounded-md transition-colors ${
-                    role === 'customer'
-                      ? 'bg-primary-50 border-primary-500 text-primary-700'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setRole('customer')}
-                >
-                  <Users className="h-5 w-5 mr-3" />
-                  <div className="text-left">
-                    <div className="font-medium">Customer</div>
-                    <div className="text-sm opacity-75">Browse and rent equipment</div>
-                  </div>
-                </button>
-                
-                <button
-                  type="button"
-                  className={`w-full flex items-center justify-start p-3 border rounded-md transition-colors ${
-                    role === 'staff'
-                      ? 'bg-primary-50 border-primary-500 text-primary-700'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setRole('staff')}
-                >
-                  <User className="h-5 w-5 mr-3" />
-                  <div className="text-left">
-                    <div className="font-medium">Staff</div>
-                    <div className="text-sm opacity-75">Create orders and manage rentals</div>
-                  </div>
-                </button>
-                
-                <button
-                  type="button"
-                  className={`w-full flex items-center justify-start p-3 border rounded-md transition-colors ${
-                    role === 'admin'
-                      ? 'bg-primary-50 border-primary-500 text-primary-700'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setRole('admin')}
-                >
-                  <Shield className="h-5 w-5 mr-3" />
-                  <div className="text-left">
-                    <div className="font-medium">Administrator</div>
-                    <div className="text-sm opacity-75">Full system access and management</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-            
             <Button
               type="submit"
               fullWidth
               isLoading={isLoading}
+              disabled={isLoading || !name.trim() || !email || !password || !confirmPassword}
             >
-              Create account
+              {isLoading ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
           

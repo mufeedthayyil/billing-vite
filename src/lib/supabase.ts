@@ -4,7 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -56,6 +56,18 @@ export interface User {
   updated_at?: string;
 }
 
+// Test Supabase connection
+export const testConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('equipments').select('count').limit(1);
+    if (error) throw error;
+    return { success: true, message: 'Connected to Supabase successfully' };
+  } catch (error) {
+    console.error('Supabase connection error:', error);
+    return { success: false, message: 'Failed to connect to Supabase' };
+  }
+};
+
 // Equipment operations
 export const equipmentService = {
   async getAll() {
@@ -94,7 +106,7 @@ export const equipmentService = {
   async update(id: string, equipment: Partial<Equipment>) {
     const { data, error } = await supabase
       .from('equipments')
-      .update(equipment)
+      .update({ ...equipment, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();
@@ -145,7 +157,7 @@ export const orderService = {
   async update(id: string, order: Partial<Order>) {
     const { data, error } = await supabase
       .from('orders')
-      .update(order)
+      .update({ ...order, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select(`
         *,
@@ -240,7 +252,7 @@ export const userService = {
   async update(id: string, user: Partial<User>) {
     const { data, error } = await supabase
       .from('users')
-      .update(user)
+      .update({ ...user, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();

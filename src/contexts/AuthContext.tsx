@@ -1,14 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, userService, User } from '../lib/supabase';
+import { supabase, userService, User, testConnection } from '../lib/supabase';
 import type { AuthError, User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  connectionStatus: { success: boolean; message: string } | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  register: (name: string, email: string, password: string, role?: 'admin' | 'staff' | 'customer') => Promise<{ success: boolean; error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -17,8 +18,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
+    // Test Supabase connection on app start
+    testConnection().then(setConnectionStatus);
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -53,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: supabaseUser.id,
           name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
           email: supabaseUser.email!,
-          role: 'customer'
+          role: 'customer' // Default role for all new users
         });
         setUser(newUser);
       } catch (createError) {
@@ -89,8 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (
     name: string, 
     email: string, 
-    password: string, 
-    role: 'admin' | 'staff' | 'customer' = 'customer'
+    password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -99,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           data: {
             name,
-            role
+            role: 'customer' // Always default to customer
           }
         }
       });
@@ -108,14 +112,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: error.message };
       }
 
-      if (data.user) {
-        // Create user profile
-        await userService.create({
-          id: data.user.id,
-          name,
-          email,
-          role
-        });
+      if (data.user && !data.session) {
+        return { 
+          success: true, 
+          error: 'Please check your email for verification link before signing in.' 
+        };
       }
 
       return { success: true };
@@ -142,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     isAuthenticated: !!user,
     isLoading,
+    connectionStatus,
     login,
     logout,
     register,
