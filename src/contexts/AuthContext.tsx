@@ -21,20 +21,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
-    // Test Supabase connection on app start
-    testConnection().then(setConnectionStatus);
+    let mounted = true;
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadUserProfile(session.user);
-      } else {
-        setIsLoading(false);
+    const initializeAuth = async () => {
+      try {
+        // Test Supabase connection first
+        const connStatus = await testConnection();
+        if (mounted) {
+          setConnectionStatus(connStatus);
+        }
+
+        if (!connStatus.success) {
+          if (mounted) {
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // Get initial session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session?.user) {
+          await loadUserProfile(session.user);
+        } else if (mounted) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setConnectionStatus({ 
+            success: false, 
+            message: 'Failed to initialize authentication' 
+          });
+          setIsLoading(false);
+        }
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
@@ -43,7 +71,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
@@ -63,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(newUser);
       } catch (createError) {
         console.error('Error creating user profile:', createError);
+        setUser(null);
       }
     } finally {
       setIsLoading(false);
@@ -81,14 +113,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       return { success: true };
-    } catch (error) {
-      return { success: false, error: 'An unexpected error occurred' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     }
   };
 
   const logout = async (): Promise<void> => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const register = async (
@@ -120,8 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       return { success: true };
-    } catch (error) {
-      return { success: false, error: 'An unexpected error occurred' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     }
   };
 
@@ -134,8 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = await userService.update(user.id, userData);
       setUser(updatedUser);
       return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Failed to update profile' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to update profile' };
     }
   };
 
