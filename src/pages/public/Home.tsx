@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, AlertCircle } from 'lucide-react';
-import { Equipment, equipmentService, testConnection } from '../../lib/supabase';
+import { Search, Filter, AlertCircle, RefreshCw } from 'lucide-react';
+import { Equipment, equipmentService, testConnection, initializeDatabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import EquipmentCard from '../../components/equipment/EquipmentCard';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import Button from '../../components/ui/Button';
 
 const Home: React.FC = () => {
   const { connectionStatus } = useAuth();
@@ -14,6 +15,7 @@ const Home: React.FC = () => {
   const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     loadEquipment();
@@ -28,20 +30,31 @@ const Home: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      // Test connection first
-      const connectionTest = await testConnection();
-      if (!connectionTest.success) {
-        throw new Error(connectionTest.message);
+      console.log('🏠 Home: Loading equipment...');
+      
+      // Initialize database connection
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        throw new Error(initResult.message);
       }
       
+      // Load equipment data
       const data = await equipmentService.getAll();
+      console.log(`🏠 Home: Loaded ${data.length} equipment items`);
       setEquipment(data);
+      
     } catch (err: any) {
+      console.error('🏠 Home: Error loading equipment:', err);
       setError(err.message || 'Failed to load equipment. Please try again.');
-      console.error('Error loading equipment:', err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    await loadEquipment();
+    setIsRetrying(false);
   };
 
   const filterEquipment = () => {
@@ -81,21 +94,28 @@ const Home: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Alert variant="error" className="mb-6">
-            <div className="flex items-center">
-              <AlertCircle size={20} className="mr-2" />
-              <div>
+            <div className="flex items-start">
+              <AlertCircle size={20} className="mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
                 <h3 className="font-medium">Database Connection Error</h3>
                 <p className="text-sm mt-1">{connectionStatus.message}</p>
-                <p className="text-sm mt-1">Please check your Supabase configuration and try again.</p>
+                <p className="text-sm mt-2 font-medium">Setup Instructions:</p>
+                <ol className="text-sm mt-1 ml-4 list-decimal space-y-1">
+                  <li>Create a Supabase project at <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">supabase.com</a></li>
+                  <li>Copy your project URL and anon key from Settings → API</li>
+                  <li>Add them to your .env file as VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</li>
+                  <li>Run the migration file in your Supabase SQL editor</li>
+                </ol>
               </div>
             </div>
           </Alert>
-          <button
-            onClick={loadEquipment}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          <Button
+            onClick={handleRetry}
+            isLoading={isRetrying}
+            icon={<RefreshCw size={16} />}
           >
-            Retry Connection
-          </button>
+            {isRetrying ? 'Testing Connection...' : 'Retry Connection'}
+          </Button>
         </div>
       </div>
     );
@@ -119,20 +139,21 @@ const Home: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Alert variant="error" className="mb-6">
-            <div className="flex items-center">
-              <AlertCircle size={20} className="mr-2" />
-              <div>
+            <div className="flex items-start">
+              <AlertCircle size={20} className="mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
                 <h3 className="font-medium">Error Loading Equipment</h3>
                 <p className="text-sm mt-1">{error}</p>
               </div>
             </div>
           </Alert>
-          <button
-            onClick={loadEquipment}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          <Button
+            onClick={handleRetry}
+            isLoading={isRetrying}
+            icon={<RefreshCw size={16} />}
           >
-            Try Again
-          </button>
+            {isRetrying ? 'Retrying...' : 'Try Again'}
+          </Button>
         </div>
       </div>
     );
@@ -157,7 +178,7 @@ const Home: React.FC = () => {
           <Alert variant="success" className="mb-6">
             <div className="flex items-center">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              <span className="text-sm">Connected to database successfully</span>
+              <span className="text-sm">Database connected successfully • {equipment.length} items available</span>
             </div>
           </Alert>
         )}
@@ -191,6 +212,8 @@ const Home: React.FC = () => {
         <div className="mb-6">
           <p className="text-gray-600">
             Showing {filteredEquipment.length} of {equipment.length} items
+            {searchTerm && ` for "${searchTerm}"`}
+            {priceFilter !== 'all' && ` in ${priceFilter} price range`}
           </p>
         </div>
 
@@ -205,18 +228,31 @@ const Home: React.FC = () => {
           <div className="text-center py-12">
             <Filter size={48} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No equipment found</h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               {searchTerm || priceFilter !== 'all'
                 ? 'Try adjusting your search or filters'
                 : 'No equipment available at the moment'}
             </p>
-            {equipment.length === 0 && (
-              <button
-                onClick={loadEquipment}
-                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            {(searchTerm || priceFilter !== 'all') && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setPriceFilter('all');
+                }}
               >
-                Reload Equipment
-              </button>
+                Clear Filters
+              </Button>
+            )}
+            {equipment.length === 0 && (
+              <Button
+                onClick={handleRetry}
+                isLoading={isRetrying}
+                icon={<RefreshCw size={16} />}
+                className="ml-2"
+              >
+                {isRetrying ? 'Reloading...' : 'Reload Equipment'}
+              </Button>
             )}
           </div>
         )}

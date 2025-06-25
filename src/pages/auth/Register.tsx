@@ -23,30 +23,54 @@ const Register: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  const validateForm = () => {
+    if (!name.trim()) {
+      setError('Name is required');
+      return false;
+    }
+
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    if (!password) {
+      setError('Password is required');
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-
-    if (!name.trim()) {
-      setError('Name is required');
+    if (!validateForm()) {
       return;
     }
     
     setIsLoading(true);
     
     try {
-      const result = await register(name.trim(), email, password);
+      const result = await register(name.trim(), email.trim(), password);
       
       if (!result.success) {
         setError(result.error || 'Registration failed');
@@ -56,16 +80,17 @@ const Register: React.FC = () => {
           setSuccess(result.error);
         } else {
           setSuccess('Registration successful! You can now sign in.');
-          // Clear form
-          setName('');
-          setEmail('');
-          setPassword('');
-          setConfirmPassword('');
         }
+        
+        // Clear form on success
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
       }
-    } catch (err) {
-      setError('An error occurred. Please try again later.');
-      console.error(err);
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred. Please try again.');
+      console.error('Registration error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +143,7 @@ const Register: React.FC = () => {
               autoComplete="name"
               placeholder="Enter your full name"
               icon={<User className="h-5 w-5 text-gray-400" />}
+              disabled={isLoading}
             />
             
             <Input
@@ -130,6 +156,7 @@ const Register: React.FC = () => {
               autoComplete="email"
               placeholder="Enter your email"
               icon={<Mail className="h-5 w-5 text-gray-400" />}
+              disabled={isLoading}
             />
             
             <Input
@@ -142,6 +169,7 @@ const Register: React.FC = () => {
               autoComplete="new-password"
               placeholder="Create a password (min 6 characters)"
               icon={<Lock className="h-5 w-5 text-gray-400" />}
+              disabled={isLoading}
             />
             
             <Input
@@ -154,7 +182,15 @@ const Register: React.FC = () => {
               autoComplete="new-password"
               placeholder="Confirm your password"
               icon={<Lock className="h-5 w-5 text-gray-400" />}
+              disabled={isLoading}
             />
+            
+            <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-md">
+              <p className="font-medium text-blue-900 mb-1">Account Information:</p>
+              <p>• All new accounts are created as customer accounts</p>
+              <p>• Staff access is granted by administrators</p>
+              <p>• Your account will be ready to use immediately</p>
+            </div>
             
             <Button
               type="submit"
@@ -168,7 +204,7 @@ const Register: React.FC = () => {
           
           <div className="mt-6 text-center">
             <span className="text-gray-600">Already have an account?</span>{' '}
-            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
               Sign in
             </Link>
           </div>
