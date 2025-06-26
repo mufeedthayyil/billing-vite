@@ -372,7 +372,7 @@ export const suggestionService = {
   }
 };
 
-// Enhanced user service
+// Enhanced user service with better error handling
 export const userService = {
   async getAll() {
     try {

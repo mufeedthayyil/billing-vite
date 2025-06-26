@@ -63,6 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
+      console.log('Auth state change:', event, session?.user?.id);
+
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
@@ -79,22 +81,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
+      console.log('Loading user profile for:', supabaseUser.id);
+      
+      // Try to get existing user profile
       const userProfile = await userService.getById(supabaseUser.id);
+      console.log('Found existing user profile:', userProfile);
       setUser(userProfile);
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      // If user profile doesn't exist, create one
+      console.log('User profile not found, creating new one...');
+      
+      // If user profile doesn't exist, wait a moment for the trigger to create it
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       try {
-        const newUser = await userService.create({
-          id: supabaseUser.id,
-          name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
-          email: supabaseUser.email!,
-          role: 'customer' // Default role for all new users
-        });
-        setUser(newUser);
-      } catch (createError) {
-        console.error('Error creating user profile:', createError);
-        setUser(null);
+        // Try again to get the profile (trigger should have created it)
+        const userProfile = await userService.getById(supabaseUser.id);
+        console.log('Found user profile after trigger:', userProfile);
+        setUser(userProfile);
+      } catch (secondError) {
+        console.log('Trigger failed, manually creating user profile...');
+        
+        // If trigger failed, manually create the profile
+        try {
+          const newUser = await userService.create({
+            id: supabaseUser.id,
+            name: supabaseUser.user_metadata?.name || 
+                  supabaseUser.user_metadata?.full_name ||
+                  supabaseUser.email?.split('@')[0] || 
+                  'User',
+            email: supabaseUser.email!,
+            role: 'customer' // Default role for all new users
+          });
+          console.log('Manually created user profile:', newUser);
+          setUser(newUser);
+        } catch (createError) {
+          console.error('Failed to create user profile:', createError);
+          setUser(null);
+        }
       }
     } finally {
       setIsLoading(false);
@@ -133,20 +156,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      console.log('Registering user:', { name, email });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
+            full_name: name,
             role: 'customer' // Always default to customer
           }
         }
       });
 
       if (error) {
+        console.error('Registration error:', error);
         return { success: false, error: error.message };
       }
+
+      console.log('Registration response:', data);
 
       if (data.user && !data.session) {
         return { 
@@ -157,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { success: true };
     } catch (error: any) {
+      console.error('Registration exception:', error);
       return { success: false, error: error.message || 'An unexpected error occurred' };
     }
   };
