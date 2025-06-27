@@ -16,7 +16,7 @@ const Dashboard = React.lazy(() => import('./pages/staff/Dashboard'));
 const Orders = React.lazy(() => import('./pages/staff/Orders'));
 const AdminPanel = React.lazy(() => import('./pages/admin/AdminPanel'));
 
-// Loading component
+// Enhanced loading component with better UX
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
     <div className="text-center">
@@ -68,7 +68,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Protected route component
+// Protected route component with better loading states
 const ProtectedRoute: React.FC<{
   element: React.ReactElement;
   requiredRole?: 'admin' | 'staff';

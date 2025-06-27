@@ -66,8 +66,15 @@ if (!rootElement) {
   throw new Error('Root element not found');
 }
 
-// Add loading indicator
+// Remove any existing loading indicators
+const existingLoading = document.querySelector('.loading-fallback');
+if (existingLoading) {
+  existingLoading.remove();
+}
+
+// Create a temporary loading indicator
 const loadingDiv = document.createElement('div');
+loadingDiv.className = 'app-loading';
 loadingDiv.innerHTML = `
   <div style="
     position: fixed;
@@ -106,8 +113,9 @@ document.body.appendChild(loadingDiv);
 
 // Remove loading indicator after app loads
 setTimeout(() => {
-  if (loadingDiv.parentNode) {
-    loadingDiv.parentNode.removeChild(loadingDiv);
+  const loading = document.querySelector('.app-loading');
+  if (loading && loading.parentNode) {
+    loading.parentNode.removeChild(loading);
   }
 }, 100);
 
