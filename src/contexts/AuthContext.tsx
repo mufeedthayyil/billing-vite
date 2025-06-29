@@ -90,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           name,
         },
+        emailRedirectTo: undefined, // Disable email confirmation
       },
     })
 
@@ -98,11 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error
     }
 
-    if (data.user && !data.session) {
-      toast.success('Please check your email to verify your account!')
-    } else {
-      toast.success('Account created successfully!')
-    }
+    // Since we disabled email confirmation, the user should be signed in immediately
+    toast.success('Account created successfully!')
   }
 
   const signOut = async () => {

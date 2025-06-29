@@ -24,7 +24,7 @@ export function Admin() {
   })
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user && (user.role === 'admin' || user.role === 'staff')) {
       loadData()
     }
   }, [user])
@@ -123,7 +123,7 @@ export function Admin() {
     }
   }
 
-  const handleUpdateUserRole = async (userId: string, newRole: 'admin' | 'staff') => {
+  const handleUpdateUserRole = async (userId: string, newRole: 'admin' | 'staff' | 'customer') => {
     try {
       await db.updateUser(userId, { role: newRole })
       toast.success('User role updated successfully')
@@ -134,12 +134,38 @@ export function Admin() {
     }
   }
 
-  if (!user || user.role !== 'admin') {
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Admin'
+      case 'staff':
+        return 'Staff'
+      case 'customer':
+        return 'Customer'
+      default:
+        return role
+    }
+  }
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-red-100 text-red-800'
+      case 'staff':
+        return 'bg-blue-100 text-blue-800'
+      case 'customer':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (!user || !['admin', 'staff'].includes(user.role)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">Admin access required.</p>
+          <p className="text-gray-600">Staff access required.</p>
         </div>
       </div>
     )
@@ -397,20 +423,17 @@ export function Admin() {
                         <td className="py-3 px-4 font-medium">{user.name}</td>
                         <td className="py-3 px-4">{user.email}</td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            user.role === 'admin' 
-                              ? 'bg-red-100 text-red-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {user.role}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
+                            {getRoleDisplayName(user.role)}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <select
                             value={user.role}
-                            onChange={(e) => handleUpdateUserRole(user.id, e.target.value as 'admin' | 'staff')}
+                            onChange={(e) => handleUpdateUserRole(user.id, e.target.value as 'admin' | 'staff' | 'customer')}
                             className="text-sm rounded border-gray-300 focus:ring-primary-500 focus:border-primary-500"
                           >
+                            <option value="customer">Customer</option>
                             <option value="staff">Staff</option>
                             <option value="admin">Admin</option>
                           </select>

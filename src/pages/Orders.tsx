@@ -64,14 +64,17 @@ export function Orders() {
     )
   }
 
+  const pageTitle = user.role === 'customer' ? 'My Orders' : 'All Orders'
+  const pageDescription = user.role === 'customer' 
+    ? 'View your equipment rental history' 
+    : 'View and manage all equipment rental orders'
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-          <p className="text-gray-600 mt-2">
-            View and manage equipment rental orders
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{pageTitle}</h1>
+          <p className="text-gray-600 mt-2">{pageDescription}</p>
         </div>
 
         {orders.length > 0 ? (
@@ -83,9 +86,11 @@ export function Orders() {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {order.equipment?.name || 'Equipment'}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Rented by: {order.user?.name || 'Unknown'}
-                    </p>
+                    {(user.role === 'admin' || user.role === 'staff') && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Customer: {order.user?.name || 'Unknown'} ({order.user?.email})
+                      </p>
+                    )}
                     <div className="mt-2 text-sm text-gray-600">
                       <p>Duration: {order.duration}</p>
                       <p>Rent Date: {formatDateTime(order.rent_date)}</p>
@@ -97,7 +102,7 @@ export function Orders() {
                       {formatCurrency(order.total_cost)}
                     </div>
                     <div className="text-sm text-gray-500 mt-1">
-                      {formatDateTime(order.created_at)}
+                      Ordered: {formatDateTime(order.created_at)}
                     </div>
                   </div>
                 </div>
@@ -108,10 +113,13 @@ export function Orders() {
           <div className="text-center py-12">
             <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No orders yet
+              {user.role === 'customer' ? 'No orders yet' : 'No orders found'}
             </h3>
             <p className="text-gray-600">
-              Equipment rental orders will appear here
+              {user.role === 'customer' 
+                ? 'Start browsing equipment to place your first order'
+                : 'Customer orders will appear here'
+              }
             </p>
           </div>
         )}

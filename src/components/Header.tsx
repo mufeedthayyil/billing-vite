@@ -16,6 +16,19 @@ export function Header() {
     }
   }
 
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Admin'
+      case 'staff':
+        return 'Staff'
+      case 'customer':
+        return 'Customer'
+      default:
+        return role
+    }
+  }
+
   return (
     <header className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -46,9 +59,9 @@ export function Header() {
                   to="/orders"
                   className="text-gray-700 hover:text-primary-600 transition-colors"
                 >
-                  Orders
+                  {user.role === 'customer' ? 'My Orders' : 'Orders'}
                 </Link>
-                {user.role === 'admin' && (
+                {(user.role === 'admin' || user.role === 'staff') && (
                   <Link
                     to="/admin"
                     className="text-gray-700 hover:text-primary-600 transition-colors"
@@ -64,7 +77,7 @@ export function Header() {
             {user ? (
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-700">
-                  {user.name} ({user.role})
+                  {user.name} ({getRoleDisplayName(user.role)})
                 </span>
                 <button
                   onClick={handleSignOut}

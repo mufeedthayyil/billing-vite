@@ -5,9 +5,10 @@ import { useAuth } from '../contexts/AuthContext'
 interface ProtectedRouteProps {
   children: React.ReactNode
   adminOnly?: boolean
+  staffOnly?: boolean
 }
 
-export function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, adminOnly = false, staffOnly = false }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -28,6 +29,17 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-600">Admin access required.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (staffOnly && !['admin', 'staff'].includes(user.role)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">Staff access required.</p>
         </div>
       </div>
     )

@@ -48,6 +48,9 @@ export function Register() {
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
           Join LensPro Rentals
         </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Create your customer account to start renting equipment
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -107,9 +110,10 @@ export function Register() {
             </div>
             
             <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-              <p className="font-medium text-blue-900 mb-1">Account Information:</p>
-              <p>• All new accounts are created as staff accounts</p>
-              <p>• Admin access is granted by administrators</p>
+              <p className="font-medium text-blue-900 mb-1">Customer Account:</p>
+              <p>• Browse and rent professional camera equipment</p>
+              <p>• Flexible 12-hour and 24-hour rental options</p>
+              <p>• Track your rental orders and history</p>
             </div>
             
             <button
@@ -117,7 +121,7 @@ export function Register() {
               disabled={loading}
               className="btn btn-primary w-full"
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Creating account...' : 'Create Customer Account'}
             </button>
           </form>
           
