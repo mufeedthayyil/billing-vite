@@ -5,13 +5,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Header } from './components/layout/Header'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
-// Lazy load pages - fixed to handle named exports
-const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })))
-const Suggestions = React.lazy(() => import('./pages/Suggestions').then(module => ({ default: module.Suggestions })))
-const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })))
-const Register = React.lazy(() => import('./pages/Register').then(module => ({ default: module.Register })))
-const Orders = React.lazy(() => import('./pages/Orders').then(module => ({ default: module.Orders })))
-const Admin = React.lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })))
+// Import pages directly to avoid lazy loading issues
+import { Home } from './pages/Home'
+import { Suggestions } from './pages/Suggestions'
+import { Login } from './pages/Login'
+import { Register } from './pages/Register'
+import { Orders } from './pages/Orders'
+import { Admin } from './pages/Admin'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -42,36 +42,34 @@ function AppRoutes() {
   const { loading } = useAuth()
 
   if (loading) {
-    return <LoadingSpinner message="Initializing application..." />
+    return <LoadingSpinner message="Loading application..." />
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/suggestions" element={<Suggestions />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/orders"
-            element={
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute adminOnly>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Suspense>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/suggestions" element={<Suggestions />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <Orders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </div>
   )
 }

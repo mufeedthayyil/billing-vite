@@ -21,13 +21,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    let retryCount = 0
+    const maxRetries = 3
 
     const initializeAuth = async () => {
       try {
         console.log('🔄 Initializing auth...')
         
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Get initial session with timeout
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 10000)
+        )
+        
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any
         
         if (error) {
           console.error('❌ Session error:', error)
@@ -49,7 +59,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error)
-        if (mounted) {
+        if (mounted && retryCount < maxRetries) {
+          retryCount++
+          console.log(`🔄 Retrying auth initialization (${retryCount}/${maxRetries})...`)
+          setTimeout(initializeAuth, 2000)
+        } else if (mounted) {
           setLoading(false)
         }
       }
@@ -80,7 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string, retryCount = 0) => {
+    const maxRetries = 3
+    
     try {
       console.log('👤 Loading user profile for:', userId)
       
@@ -92,10 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('❌ Error loading user profile:', error)
-        // If user profile doesn't exist, create it
-        if (error.code === 'PGRST116') {
-          console.log('⚠️ User profile not found, will be created by trigger')
+        
+        // If user profile doesn't exist, wait a bit and retry (user creation might be in progress)
+        if (error.code === 'PGRST116' && retryCount < maxRetries) {
+          console.log(`⏳ User profile not found, retrying in 2s (${retryCount + 1}/${maxRetries})...`)
+          setTimeout(() => loadUserProfile(userId, retryCount + 1), 2000)
+          return
         }
+        
         setUser(null)
       } else {
         console.log('✅ User profile loaded:', data.name)
@@ -103,6 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('❌ Error loading user profile:', error)
+      
+      if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying user profile load (${retryCount + 1}/${maxRetries})...`)
+        setTimeout(() => loadUserProfile(userId, retryCount + 1), 2000)
+        return
+      }
+      
       setUser(null)
     } finally {
       setLoading(false)
