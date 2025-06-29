@@ -1,8 +1,7 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Camera, LogOut, Settings, User } from 'lucide-react'
-import { useAuth } from '../../contexts/AuthContext'
-import { Button } from '../ui/Button'
+import { Camera, LogOut } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 export function Header() {
   const { user, signOut } = useAuth()
@@ -67,24 +66,20 @@ export function Header() {
                 <span className="text-sm text-gray-700">
                   {user.name} ({user.role})
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={handleSignOut}
-                  className="text-gray-700"
+                  className="text-gray-700 hover:text-primary-600 p-1"
                 >
                   <LogOut className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
                 <Link to="/login">
-                  <Button variant="outline" size="sm">
-                    Sign In
-                  </Button>
+                  <button className="btn btn-outline">Sign In</button>
                 </Link>
                 <Link to="/register">
-                  <Button size="sm">Sign Up</Button>
+                  <button className="btn btn-primary">Sign Up</button>
                 </Link>
               </div>
             )}

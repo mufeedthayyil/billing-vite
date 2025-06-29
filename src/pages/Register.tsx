@@ -1,9 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Camera, User, Mail, Lock } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
 
 export function Register() {
   const { signUp } = useAuth()
@@ -55,42 +53,58 @@ export function Register() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input
-              label="Full name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoComplete="name"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Full name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
             
-            <Input
-              label="Email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
             
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
             
-            <Input
-              label="Confirm password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-              error={error}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Confirm password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+              {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+            </div>
             
             <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
               <p className="font-medium text-blue-900 mb-1">Account Information:</p>
@@ -98,9 +112,13 @@ export function Register() {
               <p>• Admin access is granted by administrators</p>
             </div>
             
-            <Button type="submit" loading={loading} className="w-full">
-              Create account
-            </Button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full"
+            >
+              {loading ? 'Creating account...' : 'Create account'}
+            </button>
           </form>
           
           <div className="mt-6 text-center">

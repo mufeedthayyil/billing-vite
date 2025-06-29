@@ -2,9 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { Package } from 'lucide-react'
 import { Order, db } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatCurrency, formatDateTime } from '../lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 export function Orders() {
@@ -30,6 +27,24 @@ export function Orders() {
     }
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const formatDateTime = (date: string) => {
+    return new Date(date).toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -42,7 +57,11 @@ export function Orders() {
   }
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -58,33 +77,31 @@ export function Orders() {
         {orders.length > 0 ? (
           <div className="space-y-4">
             {orders.map((order) => (
-              <Card key={order.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {order.equipment?.name || 'Equipment'}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Rented by: {order.user?.name || 'Unknown'}
-                      </p>
-                      <div className="mt-2 text-sm text-gray-600">
-                        <p>Duration: {order.duration}</p>
-                        <p>Rent Date: {formatDateTime(order.rent_date)}</p>
-                        <p>Return Date: {formatDateTime(order.return_date)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-primary-600">
-                        {formatCurrency(order.total_cost)}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        {formatDateTime(order.created_at)}
-                      </div>
+              <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {order.equipment?.name || 'Equipment'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Rented by: {order.user?.name || 'Unknown'}
+                    </p>
+                    <div className="mt-2 text-sm text-gray-600">
+                      <p>Duration: {order.duration}</p>
+                      <p>Rent Date: {formatDateTime(order.rent_date)}</p>
+                      <p>Return Date: {formatDateTime(order.return_date)}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="text-right">
+                    <div className="text-lg font-semibold text-primary-600">
+                      {formatCurrency(order.total_cost)}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {formatDateTime(order.created_at)}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         ) : (

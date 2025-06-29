@@ -1,9 +1,6 @@
 import React, { useState } from 'react'
 import { Send, Lightbulb } from 'lucide-react'
 import { db } from '../lib/supabase'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import toast from 'react-hot-toast'
 
 export function Suggestions() {
@@ -53,18 +50,24 @@ export function Suggestions() {
           </p>
         </div>
 
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Equipment Suggestion</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-2xl mx-auto">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold">Equipment Suggestion</h3>
+          </div>
+          <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <Input
-                label="Your Name or Email (Optional)"
-                value={suggestedBy}
-                onChange={(e) => setSuggestedBy(e.target.value)}
-                placeholder="How should we contact you?"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Name or Email (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={suggestedBy}
+                  onChange={(e) => setSuggestedBy(e.target.value)}
+                  placeholder="How should we contact you?"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -80,13 +83,17 @@ export function Suggestions() {
                 />
               </div>
               
-              <Button type="submit" loading={loading} className="w-full">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary w-full"
+              >
                 <Send className="h-4 w-4 mr-2" />
-                Submit Suggestion
-              </Button>
+                {loading ? 'Submitting...' : 'Submit Suggestion'}
+              </button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
