@@ -28,10 +28,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('🔄 Initializing auth...')
         
-        // Get initial session with timeout
+        // Check if Supabase is properly configured
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+        
+        if (!supabaseUrl || !supabaseKey) {
+          console.error('❌ Supabase configuration missing. Please check your .env file.')
+          toast.error('Supabase configuration missing. Please check your .env file.')
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+
+        if (supabaseUrl.includes('your_supabase_project_url') || supabaseKey.includes('your_supabase_anon_key')) {
+          console.error('❌ Please update your .env file with actual Supabase credentials.')
+          toast.error('Please update your .env file with actual Supabase credentials.')
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+        
+        // Get initial session with increased timeout
         const sessionPromise = supabase.auth.getSession()
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
+          setTimeout(() => reject(new Error('Session timeout')), 30000) // Increased to 30 seconds
         )
         
         const { data: { session }, error } = await Promise.race([
@@ -59,10 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error)
+        
+        if (error instanceof Error && error.message === 'Session timeout') {
+          toast.error('Unable to connect to Supabase. Please check your internet connection and Supabase configuration.')
+        }
+        
         if (mounted && retryCount < maxRetries) {
           retryCount++
           console.log(`🔄 Retrying auth initialization (${retryCount}/${maxRetries})...`)
-          setTimeout(initializeAuth, 2000)
+          setTimeout(initializeAuth, 3000) // Increased retry delay
         } else if (mounted) {
           setLoading(false)
         }
