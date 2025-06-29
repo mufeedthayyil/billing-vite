@@ -1,5 +1,5 @@
 /*
-  # Optimized Database Schema Setup
+  # LensPro Rentals Database Schema - Clean Setup
 
   1. New Tables
     - `users` - User profiles with roles (admin, staff)
@@ -12,17 +12,44 @@
     - Add policies for proper access control
     - Create user creation trigger
 
-  3. Performance
-    - Add necessary indexes
-    - Optimized for faster execution
+  3. Sample Data
+    - Insert sample equipment for testing
 */
 
--- Enable UUID extension (if not already enabled)
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Drop existing objects in correct order (fast cleanup)
+-- Drop existing objects in correct order to avoid conflicts
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS handle_new_user();
+
+-- Drop existing policies
+DO $$ 
+BEGIN
+    -- Drop users policies
+    DROP POLICY IF EXISTS "Users can read own data" ON users;
+    DROP POLICY IF EXISTS "Users can update own data" ON users;
+    DROP POLICY IF EXISTS "Admins can manage all users" ON users;
+    
+    -- Drop equipments policies
+    DROP POLICY IF EXISTS "Anyone can read available equipment" ON equipments;
+    DROP POLICY IF EXISTS "Admins can read all equipment" ON equipments;
+    DROP POLICY IF EXISTS "Admins can manage equipment" ON equipments;
+    
+    -- Drop orders policies
+    DROP POLICY IF EXISTS "Users can read all orders" ON orders;
+    DROP POLICY IF EXISTS "Users can create orders" ON orders;
+    
+    -- Drop suggestions policies
+    DROP POLICY IF EXISTS "Anyone can read suggestions" ON suggestions;
+    DROP POLICY IF EXISTS "Anyone can create suggestions" ON suggestions;
+    DROP POLICY IF EXISTS "Admins can manage suggestions" ON suggestions;
+EXCEPTION
+    WHEN undefined_table THEN
+        NULL; -- Ignore if tables don't exist yet
+END $$;
+
+-- Drop existing tables if they exist (in correct order due to foreign keys)
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS suggestions CASCADE;
 DROP TABLE IF EXISTS equipments CASCADE;
@@ -68,17 +95,17 @@ CREATE TABLE suggestions (
   created_at timestamptz DEFAULT now()
 );
 
--- Enable RLS (batch operation)
+-- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suggestions ENABLE ROW LEVEL SECURITY;
 
--- Create indexes first (for better policy performance)
-CREATE INDEX idx_users_role ON users(role);
+-- Create indexes for better performance
 CREATE INDEX idx_equipments_available ON equipments(available);
 CREATE INDEX idx_orders_user_id ON orders(user_id);
 CREATE INDEX idx_orders_equipment_id ON orders(equipment_id);
+CREATE INDEX idx_users_role ON users(role);
 
 -- Users policies
 CREATE POLICY "Users can read own data" ON users
@@ -96,7 +123,7 @@ CREATE POLICY "Admins can manage all users" ON users
     )
   );
 
--- Equipment policies
+-- Equipments policies
 CREATE POLICY "Anyone can read available equipment" ON equipments
   FOR SELECT USING (available = true);
 
@@ -141,7 +168,7 @@ CREATE POLICY "Admins can manage suggestions" ON suggestions
     )
   );
 
--- Create user creation function
+-- Create function to handle user creation
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -156,12 +183,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger
+-- Create trigger for new user creation
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- Insert sample data (batch insert for speed)
+-- Insert sample equipment data
 INSERT INTO equipments (name, image_url, rate_12hr, rate_24hr, available) VALUES
   ('Canon EOS R5', 'https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=400', 2500, 4000, true),
   ('Sony A7 III', 'https://images.pexels.com/photos/51383/photo-camera-subject-photographer-51383.jpeg?auto=compress&cs=tinysrgb&w=400', 2000, 3500, true),
