@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true
     let retryCount = 0
-    const maxRetries = 3
+    const maxRetries = 2
 
     const initializeAuth = async () => {
       try {
@@ -50,79 +50,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
         
-        // Get initial session with increased timeout
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 30000) // Increased to 30 seconds
-        )
-        
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any
-        
-        if (error) {
-          console.error('❌ Session error:', error)
+        // Get initial session with shorter timeout and better error handling
+        try {
+          const sessionPromise = supabase.auth.getSession()
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Session timeout')), 10000) // Reduced to 10 seconds
+          )
+          
+          const { data: { session }, error } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+          ]) as any
+          
+          if (error) {
+            console.error('❌ Session error:', error)
+            throw error
+          }
+
           if (mounted) {
+            setSession(session)
+            if (session?.user) {
+              console.log('✅ Found session, loading user profile...')
+              await loadUserProfile(session.user.id)
+            } else {
+              console.log('ℹ️ No session found')
+              setLoading(false)
+            }
+          }
+        } catch (sessionError) {
+          console.warn('⚠️ Session initialization failed, continuing without session:', sessionError)
+          
+          // If session fails, still allow the app to work without authentication
+          if (mounted) {
+            setSession(null)
+            setUser(null)
             setLoading(false)
           }
-          return
-        }
-
-        if (mounted) {
-          setSession(session)
-          if (session?.user) {
-            console.log('✅ Found session, loading user profile...')
-            await loadUserProfile(session.user.id)
-          } else {
-            console.log('ℹ️ No session found')
-            setLoading(false)
+          
+          // Only show error toast if it's not a timeout and we haven't retried
+          if (sessionError instanceof Error && 
+              sessionError.message === 'Session timeout' && 
+              retryCount === 0) {
+            console.log('🔄 Session timeout, will retry in background...')
+            // Don't show error toast immediately, try once more
+            throw sessionError
+          } else if (!(sessionError instanceof Error && sessionError.message === 'Session timeout')) {
+            toast.error('Unable to connect to authentication service. Some features may be limited.')
           }
         }
       } catch (error) {
         console.error('❌ Auth initialization error:', error)
         
-        if (error instanceof Error && error.message === 'Session timeout') {
-          toast.error('Unable to connect to Supabase. Please check your internet connection and Supabase configuration.')
-        }
-        
         if (mounted && retryCount < maxRetries) {
           retryCount++
           console.log(`🔄 Retrying auth initialization (${retryCount}/${maxRetries})...`)
-          setTimeout(initializeAuth, 3000) // Increased retry delay
+          setTimeout(initializeAuth, 2000) // Reduced retry delay
         } else if (mounted) {
+          // Final fallback - allow app to work without auth
+          setSession(null)
+          setUser(null)
           setLoading(false)
+          
+          if (error instanceof Error && error.message === 'Session timeout') {
+            console.warn('⚠️ Authentication service unavailable, continuing in offline mode')
+            // Don't show error toast for timeout after retries - just log it
+          } else {
+            toast.error('Authentication service unavailable. Please check your connection.')
+          }
         }
       }
     }
 
     initializeAuth()
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Auth state change:', event)
-        
-        if (!mounted) return
+    // Listen for auth changes with error handling
+    let subscription: any
+    try {
+      const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('🔄 Auth state change:', event)
+          
+          if (!mounted) return
 
-        setSession(session)
-        if (session?.user) {
-          await loadUserProfile(session.user.id)
-        } else {
-          setUser(null)
-          setLoading(false)
+          try {
+            setSession(session)
+            if (session?.user) {
+              await loadUserProfile(session.user.id)
+            } else {
+              setUser(null)
+              setLoading(false)
+            }
+          } catch (error) {
+            console.error('❌ Error handling auth state change:', error)
+            setUser(null)
+            setLoading(false)
+          }
         }
+      )
+      subscription = authSubscription
+    } catch (error) {
+      console.error('❌ Error setting up auth listener:', error)
+      if (mounted) {
+        setLoading(false)
       }
-    )
+    }
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [])
 
   const loadUserProfile = async (userId: string, retryCount = 0) => {
-    const maxRetries = 3
+    const maxRetries = 2
     
     try {
       console.log('👤 Loading user profile for:', userId)
@@ -138,8 +180,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // If user profile doesn't exist, wait a bit and retry (user creation might be in progress)
         if (error.code === 'PGRST116' && retryCount < maxRetries) {
-          console.log(`⏳ User profile not found, retrying in 2s (${retryCount + 1}/${maxRetries})...`)
-          setTimeout(() => loadUserProfile(userId, retryCount + 1), 2000)
+          console.log(`⏳ User profile not found, retrying in 1s (${retryCount + 1}/${maxRetries})...`)
+          setTimeout(() => loadUserProfile(userId, retryCount + 1), 1000)
           return
         }
         
@@ -153,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (retryCount < maxRetries) {
         console.log(`🔄 Retrying user profile load (${retryCount + 1}/${maxRetries})...`)
-        setTimeout(() => loadUserProfile(userId, retryCount + 1), 2000)
+        setTimeout(() => loadUserProfile(userId, retryCount + 1), 1000)
         return
       }
       
