@@ -1,159 +1,107 @@
-import React, { Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import { CartProvider } from './contexts/CartContext';
+import React, { Suspense } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { Header } from './components/layout/Header'
+import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
-// Layout
-import Header from './components/layout/Header';
+// Lazy load pages
+const Home = React.lazy(() => import('./pages/Home'))
+const Suggestions = React.lazy(() => import('./pages/Suggestions'))
+const Login = React.lazy(() => import('./pages/Login'))
+const Register = React.lazy(() => import('./pages/Register'))
+const Orders = React.lazy(() => import('./pages/Orders'))
+const Admin = React.lazy(() => import('./pages/Admin'))
 
-// Lazy load components for better performance
-const Home = React.lazy(() => import('./pages/public/Home'));
-const Cart = React.lazy(() => import('./pages/public/Cart'));
-const Suggestions = React.lazy(() => import('./pages/public/Suggestions'));
-const Login = React.lazy(() => import('./pages/auth/Login'));
-const Register = React.lazy(() => import('./pages/auth/Register'));
-const Dashboard = React.lazy(() => import('./pages/staff/Dashboard'));
-const Orders = React.lazy(() => import('./pages/staff/Orders'));
-const AdminPanel = React.lazy(() => import('./pages/admin/AdminPanel'));
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+  const { user, loading } = useAuth()
 
-// Enhanced loading component with better UX
-const LoadingSpinner = () => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-      <p className="text-gray-600">Loading...</p>
-    </div>
-  </div>
-);
-
-// Error boundary component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
+  if (loading) {
+    return <LoadingSpinner />
   }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
+  if (!user) {
+    return <Navigate to="/login" replace />
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('App Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
-            <p className="text-gray-600 mb-4">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-// Protected route component with better loading states
-const ProtectedRoute: React.FC<{
-  element: React.ReactElement;
-  requiredRole?: 'admin' | 'staff';
-}> = ({ element, requiredRole }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-  
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-  
-  if (requiredRole && user?.role !== requiredRole && user?.role !== 'admin') {
+  if (adminOnly && user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access this page.</p>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">Admin access required.</p>
         </div>
       </div>
-    );
+    )
   }
-  
-  return element;
-};
+
+  return <>{children}</>
+}
+
+function AppRoutes() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/suggestions" element={<Suggestions />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <Orders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </div>
+  )
+}
 
 function App() {
   return (
-    <ErrorBoundary>
-      <CartProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/suggestions" element={<Suggestions />} />
-              
-              {/* Auth routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
-              {/* Staff routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute
-                    element={<Dashboard />}
-                    requiredRole="staff"
-                  />
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <ProtectedRoute
-                    element={<Orders />}
-                    requiredRole="staff"
-                  />
-                }
-              />
-              
-              {/* Admin routes */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute
-                    element={<AdminPanel />}
-                    requiredRole="admin"
-                  />
-                }
-              />
-              
-              {/* Fallback route */}
-              <Route path="*" element={<Home />} />
-            </Routes>
-          </Suspense>
-        </div>
-      </CartProvider>
-    </ErrorBoundary>
-  );
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#22c55e',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+      </AuthProvider>
+    </Router>
+  )
 }
 
-export default App;
+export default App

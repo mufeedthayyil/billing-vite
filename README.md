@@ -6,10 +6,11 @@ A professional camera equipment rental platform built with React, TypeScript, Vi
 
 - **Equipment Catalog**: Browse professional cameras, lenses, and accessories
 - **Flexible Rental Periods**: 12-hour and 24-hour rental options
-- **User Management**: Customer, staff, and admin roles
+- **User Management**: Staff and admin roles with proper access control
 - **Order Management**: Complete rental order workflow
 - **Suggestions System**: Users can suggest new equipment
-- **Responsive Design**: Works on all devices
+- **Responsive Design**: Works perfectly on all devices
+- **Real-time Updates**: Powered by Supabase for instant data sync
 
 ## 🛠️ Tech Stack
 
@@ -17,17 +18,18 @@ A professional camera equipment rental platform built with React, TypeScript, Vi
 - **Build Tool**: Vite
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
-- **Deployment**: Vercel
+- **Notifications**: React Hot Toast
+- **Icons**: Lucide React
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account
 
 ## 🔧 Setup Instructions
 
-### 1. Clone the Repository
+### 1. Clone and Install
 
 ```bash
 git clone <repository-url>
@@ -58,15 +60,13 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 
 1. Open your Supabase project dashboard
 2. Go to **SQL Editor**
-3. Copy and run the migration file: `supabase/migrations/20250624010000_complete_schema_fix.sql`
+3. Copy and run the migration file: `supabase/migrations/20250101000000_initial_schema.sql`
 
 This will create:
-- `users` table with role-based access
-- `equipments` table with sample data
-- `orders` table for rental management
-- `suggestions` table for user feedback
+- All necessary tables with proper relationships
 - Row Level Security (RLS) policies
 - Sample equipment data
+- User creation trigger
 
 ### 5. Run the Development Server
 
@@ -80,16 +80,23 @@ The application will be available at `http://localhost:3000`
 
 ### Tables
 
-- **users**: User profiles with roles (admin, staff, customer)
-- **equipments**: Camera equipment catalog
+- **users**: User profiles with roles (admin, staff)
+- **equipments**: Camera equipment catalog with rates
 - **orders**: Rental orders and bookings
 - **suggestions**: User equipment suggestions
 
-### Default Roles
+### User Roles
 
-- **Customer**: Can browse equipment and place orders
-- **Staff**: Can manage orders and view suggestions
-- **Admin**: Full access to all features and user management
+- **Staff**: Can rent equipment and view orders (default for new registrations)
+- **Admin**: Full access to manage equipment, users, and all data
+
+## 🔐 Authentication & Security
+
+- Email/password authentication via Supabase Auth
+- All new users are assigned 'staff' role by default
+- Admin must manually promote users to 'admin' role in database
+- Row Level Security ensures proper data access control
+- No role selection in UI - security by design
 
 ## 🚀 Deployment
 
@@ -102,97 +109,48 @@ The application will be available at `http://localhost:3000`
    - `VITE_SUPABASE_ANON_KEY`
 4. Deploy
 
-### Environment Variables for Production
-
-Make sure to set these in your deployment platform:
-
-```env
-VITE_SUPABASE_URL=your_production_supabase_url
-VITE_SUPABASE_ANON_KEY=your_production_anon_key
-```
-
-## 🔐 Authentication
-
-- All users register as **customers** by default
-- Admin can promote users to **staff** or **admin** roles via database
-- Email/password authentication with Supabase Auth
-- Row Level Security ensures data access control
-
 ## 📱 Features by Role
 
-### Customer
-- Browse equipment catalog
-- Add items to cart
-- View rental history
+### Staff (Default)
+- Browse equipment catalog with real-time availability
+- Rent equipment with 12hr/24hr options
+- View all rental orders
 - Submit equipment suggestions
-
-### Staff
-- All customer features
-- Manage orders (confirm, complete)
-- View all suggestions
-- Access staff dashboard
 
 ### Admin
 - All staff features
-- Manage equipment inventory
-- Manage users and roles
+- Manage equipment inventory (add, edit, delete)
+- Manage user roles
+- View and delete suggestions
 - Full system administration
 
-## 🛠️ Development
+## 🎯 Key Improvements
 
-### Available Scripts
-
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript checks
-```
-
-### Project Structure
-
-```
-src/
-├── components/      # Reusable UI components
-├── contexts/        # React contexts (Auth, Cart)
-├── lib/            # Utilities and Supabase client
-├── pages/          # Page components
-└── types/          # TypeScript type definitions
-```
+- **Clean Architecture**: Modular components with clear separation of concerns
+- **Type Safety**: Full TypeScript implementation with proper typing
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Performance**: Lazy loading, optimized queries, and efficient state management
+- **Security**: Proper RLS policies and secure authentication flow
+- **UX**: Toast notifications, loading states, and responsive design
+- **Maintainability**: Clean code structure with reusable components
 
 ## 🐛 Troubleshooting
 
-### White Screen Issues
-- Check browser console for errors
-- Verify environment variables are set
-- Ensure Supabase connection is working
+### Common Issues
 
-### Database Connection Issues
-- Verify Supabase URL and key are correct
-- Check if migration was run successfully
-- Ensure RLS policies are properly configured
+1. **White Screen**: Check browser console for errors and verify environment variables
+2. **Database Connection**: Ensure Supabase URL and key are correct
+3. **Migration Issues**: Run the SQL migration in Supabase SQL Editor
+4. **Build Issues**: Run `npm run build` to check for TypeScript errors
 
-### Build Issues
-- Run `npm run type-check` to check for TypeScript errors
-- Clear node_modules and reinstall dependencies
-- Check for missing dependencies
+### Environment Variables
+
+Make sure these are set correctly:
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
 ## 📄 License
 
 This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
-
-## 📞 Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review Supabase documentation
-3. Create an issue in the repository
