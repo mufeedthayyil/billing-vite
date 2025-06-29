@@ -17,7 +17,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   const { user, loading } = useAuth()
 
   if (loading) {
-    return <LoadingSpinner />
+    return <LoadingSpinner message="Checking authentication..." />
   }
 
   if (!user) {
@@ -39,10 +39,16 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 }
 
 function AppRoutes() {
+  const { loading } = useAuth()
+
+  if (loading) {
+    return <LoadingSpinner message="Initializing application..." />
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/suggestions" element={<Suggestions />} />

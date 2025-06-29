@@ -20,19 +20,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        loadUserProfile(session.user.id)
-      } else {
-        setLoading(false)
+    let mounted = true
+
+    const initializeAuth = async () => {
+      try {
+        console.log('🔄 Initializing auth...')
+        
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('❌ Session error:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+
+        if (mounted) {
+          setSession(session)
+          if (session?.user) {
+            console.log('✅ Found session, loading user profile...')
+            await loadUserProfile(session.user.id)
+          } else {
+            console.log('ℹ️ No session found')
+            setLoading(false)
+          }
+        }
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error)
+        if (mounted) {
+          setLoading(false)
+        }
       }
-    })
+    }
+
+    initializeAuth()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔄 Auth state change:', event)
+        
+        if (!mounted) return
+
         setSession(session)
         if (session?.user) {
           await loadUserProfile(session.user.id)
@@ -43,11 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserProfile = async (userId: string) => {
     try {
+      console.log('👤 Loading user profile for:', userId)
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -55,13 +91,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        console.error('Error loading user profile:', error)
+        console.error('❌ Error loading user profile:', error)
+        // If user profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ User profile not found, will be created by trigger')
+        }
         setUser(null)
       } else {
+        console.log('✅ User profile loaded:', data.name)
         setUser(data)
       }
     } catch (error) {
-      console.error('Error loading user profile:', error)
+      console.error('❌ Error loading user profile:', error)
       setUser(null)
     } finally {
       setLoading(false)
@@ -69,53 +110,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+
+      toast.success('Signed in successfully!')
+    } catch (error) {
       throw error
+    } finally {
+      // Don't set loading to false here, let the auth state change handle it
     }
-
-    toast.success('Signed in successfully!')
   }
 
   const signUp = async (name: string, email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
         },
-      },
-    })
+      })
 
-    if (error) {
-      toast.error(error.message)
-      throw error
-    }
-
-    if (data.user) {
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          name,
-          email,
-          role: 'staff', // Default role as specified
-        })
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError)
-        toast.error('Error creating user profile')
-        throw profileError
+      if (error) {
+        toast.error(error.message)
+        throw error
       }
 
-      toast.success('Account created successfully!')
+      if (data.user && !data.session) {
+        toast.success('Please check your email to verify your account!')
+      } else {
+        toast.success('Account created successfully!')
+      }
+    } catch (error) {
+      throw error
+    } finally {
+      // Don't set loading to false here, let the auth state change handle it
     }
   }
 
