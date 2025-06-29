@@ -5,13 +5,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Header } from './components/layout/Header'
 import { LoadingSpinner } from './components/ui/LoadingSpinner'
 
-// Lazy load pages
-const Home = React.lazy(() => import('./pages/Home'))
-const Suggestions = React.lazy(() => import('./pages/Suggestions'))
-const Login = React.lazy(() => import('./pages/Login'))
-const Register = React.lazy(() => import('./pages/Register'))
-const Orders = React.lazy(() => import('./pages/Orders'))
-const Admin = React.lazy(() => import('./pages/Admin'))
+// Lazy load pages - fixed to handle named exports
+const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })))
+const Suggestions = React.lazy(() => import('./pages/Suggestions').then(module => ({ default: module.Suggestions })))
+const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })))
+const Register = React.lazy(() => import('./pages/Register').then(module => ({ default: module.Register })))
+const Orders = React.lazy(() => import('./pages/Orders').then(module => ({ default: module.Orders })))
+const Admin = React.lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })))
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
