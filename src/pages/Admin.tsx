@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, Users, Package, MessageSquare } from 'lucide-react'
-import { Equipment, User, Suggestion, db } from '../lib/supabase'
+import { Plus, Edit, Trash2, Users, Package, MessageSquare, DollarSign } from 'lucide-react'
+import { Equipment, User, Suggestion, Order, db } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 export function Admin() {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<'equipment' | 'users' | 'suggestions'>('equipment')
+  const [activeTab, setActiveTab] = useState<'equipment' | 'users' | 'suggestions' | 'billing'>('equipment')
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   
   // Equipment form state
@@ -31,15 +32,17 @@ export function Admin() {
 
   const loadData = async () => {
     try {
-      const [equipmentData, usersData, suggestionsData] = await Promise.all([
+      const [equipmentData, usersData, suggestionsData, ordersData] = await Promise.all([
         db.getAllEquipment(),
         db.getUsers(),
         db.getSuggestions(),
+        db.getOrders(),
       ])
       
       setEquipment(equipmentData)
       setUsers(usersData)
       setSuggestions(suggestionsData)
+      setOrders(ordersData)
     } catch (error) {
       console.error('Error loading admin data:', error)
       toast.error('Failed to load data')
@@ -54,6 +57,16 @@ export function Admin() {
       currency: 'INR',
       minimumFractionDigits: 0,
     }).format(amount)
+  }
+
+  const formatDateTime = (date: string) => {
+    return new Date(date).toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   const handleEquipmentSubmit = async (e: React.FormEvent) => {
@@ -160,6 +173,16 @@ export function Admin() {
     }
   }
 
+  // Calculate billing statistics
+  const totalRevenue = orders.reduce((sum, order) => sum + order.total_cost, 0)
+  const monthlyRevenue = orders
+    .filter(order => {
+      const orderDate = new Date(order.created_at)
+      const now = new Date()
+      return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear()
+    })
+    .reduce((sum, order) => sum + order.total_cost, 0)
+
   if (!user || !['admin', 'staff'].includes(user.role)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -183,9 +206,14 @@ export function Admin() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {user.role === 'admin' ? 'Admin Panel' : 'Staff Dashboard'}
+          </h1>
           <p className="text-gray-600 mt-2">
-            Manage equipment, users, and suggestions
+            {user.role === 'admin' 
+              ? 'Manage equipment, users, suggestions, and billing'
+              : 'Manage equipment and view billing information'
+            }
           </p>
         </div>
 
@@ -203,17 +231,21 @@ export function Admin() {
               <Package className="inline-block w-4 h-4 mr-2" />
               Equipment ({equipment.length})
             </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'users'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Users className="inline-block w-4 h-4 mr-2" />
-              Users ({users.length})
-            </button>
+            
+            {user.role === 'admin' && (
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'users'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Users className="inline-block w-4 h-4 mr-2" />
+                Users ({users.length})
+              </button>
+            )}
+            
             <button
               onClick={() => setActiveTab('suggestions')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -225,6 +257,18 @@ export function Admin() {
               <MessageSquare className="inline-block w-4 h-4 mr-2" />
               Suggestions ({suggestions.length})
             </button>
+            
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'billing'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <DollarSign className="inline-block w-4 h-4 mr-2" />
+              Billing ({orders.length} orders)
+            </button>
           </nav>
         </div>
 
@@ -233,17 +277,19 @@ export function Admin() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Equipment Management</h2>
-              <button
-                onClick={() => setShowEquipmentForm(true)}
-                className="btn btn-primary"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Equipment
-              </button>
+              {user.role === 'admin' && (
+                <button
+                  onClick={() => setShowEquipmentForm(true)}
+                  className="btn btn-primary"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Equipment
+                </button>
+              )}
             </div>
 
             {/* Equipment Form */}
-            {showEquipmentForm && (
+            {showEquipmentForm && user.role === 'admin' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold mb-4">
                   {editingEquipment ? 'Edit Equipment' : 'Add New Equipment'}
@@ -349,7 +395,9 @@ export function Admin() {
                       <th className="text-left py-3 px-4">12hr Rate</th>
                       <th className="text-left py-3 px-4">24hr Rate</th>
                       <th className="text-left py-3 px-4">Status</th>
-                      <th className="text-right py-3 px-4">Actions</th>
+                      {user.role === 'admin' && (
+                        <th className="text-right py-3 px-4">Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -376,22 +424,24 @@ export function Admin() {
                             {item.available ? 'Available' : 'Unavailable'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end space-x-1">
-                            <button
-                              onClick={() => handleEditEquipment(item)}
-                              className="p-1 text-gray-600 hover:text-primary-600"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEquipment(item.id)}
-                              className="p-1 text-gray-600 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
+                        {user.role === 'admin' && (
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex justify-end space-x-1">
+                              <button
+                                onClick={() => handleEditEquipment(item)}
+                                className="p-1 text-gray-600 hover:text-primary-600"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEquipment(item.id)}
+                                className="p-1 text-gray-600 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -401,8 +451,8 @@ export function Admin() {
           </div>
         )}
 
-        {/* Users Tab */}
-        {activeTab === 'users' && (
+        {/* Users Tab - Admin Only */}
+        {activeTab === 'users' && user.role === 'admin' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">User Management</h2>
             
@@ -466,12 +516,14 @@ export function Admin() {
                       </div>
                     </div>
                     
-                    <button
-                      onClick={() => handleDeleteSuggestion(suggestion.id)}
-                      className="p-1 text-gray-600 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={() => handleDeleteSuggestion(suggestion.id)}
+                        className="p-1 text-gray-600 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -485,6 +537,66 @@ export function Admin() {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Billing Tab */}
+        {activeTab === 'billing' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Billing & Revenue</h2>
+            
+            {/* Revenue Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Revenue</h3>
+                <p className="text-3xl font-bold text-primary-600">{formatCurrency(totalRevenue)}</p>
+                <p className="text-sm text-gray-500 mt-1">All time</p>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">This Month</h3>
+                <p className="text-3xl font-bold text-green-600">{formatCurrency(monthlyRevenue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Current month</p>
+              </div>
+            </div>
+
+            {/* Orders Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold">Recent Orders</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left py-3 px-4">Customer</th>
+                      <th className="text-left py-3 px-4">Equipment</th>
+                      <th className="text-left py-3 px-4">Duration</th>
+                      <th className="text-left py-3 px-4">Amount</th>
+                      <th className="text-left py-3 px-4">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.slice(0, 10).map((order) => (
+                      <tr key={order.id} className="border-b border-gray-100">
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="font-medium">{order.user?.name || 'Unknown'}</div>
+                            <div className="text-xs text-gray-500">{order.user?.email}</div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">{order.equipment?.name || 'Unknown Equipment'}</td>
+                        <td className="py-3 px-4">{order.duration}</td>
+                        <td className="py-3 px-4 font-semibold text-primary-600">
+                          {formatCurrency(order.total_cost)}
+                        </td>
+                        <td className="py-3 px-4">{formatDateTime(order.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

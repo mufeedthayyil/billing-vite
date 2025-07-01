@@ -1,33 +1,11 @@
 import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Camera, LogOut } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Camera } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { ProfileDropdown } from './ProfileDropdown'
 
 export function Header() {
-  const { user, signOut } = useAuth()
-  const navigate = useNavigate()
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      navigate('/')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
-
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'Admin'
-      case 'staff':
-        return 'Staff'
-      case 'customer':
-        return 'Customer'
-      default:
-        return role
-    }
-  }
+  const { user } = useAuth()
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -75,17 +53,7 @@ export function Header() {
 
           <div className="flex items-center space-x-4">
             {user ? (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-700">
-                  {user.name} ({getRoleDisplayName(user.role)})
-                </span>
-                <button
-                  onClick={handleSignOut}
-                  className="text-gray-700 hover:text-primary-600 p-1"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
+              <ProfileDropdown />
             ) : (
               <div className="flex items-center space-x-2">
                 <Link to="/login">
