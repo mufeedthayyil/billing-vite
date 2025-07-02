@@ -5,9 +5,10 @@ import { Equipment } from '../lib/supabase'
 interface EquipmentCardProps {
   equipment: Equipment
   onRent?: (equipment: Equipment, duration: '12hr' | '24hr') => void
+  showRentButton?: boolean
 }
 
-export function EquipmentCard({ equipment, onRent }: EquipmentCardProps) {
+export function EquipmentCard({ equipment, onRent, showRentButton = false }: EquipmentCardProps) {
   const [selectedDuration, setSelectedDuration] = useState<'12hr' | '24hr'>('24hr')
 
   const formatCurrency = (amount: number) => {
@@ -30,6 +31,10 @@ export function EquipmentCard({ equipment, onRent }: EquipmentCardProps) {
         src={equipment.image_url}
         alt={equipment.name}
         className="w-full h-48 object-cover"
+        onError={(e) => {
+          const target = e.target as HTMLImageElement
+          target.src = 'https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=400'
+        }}
       />
       
       <div className="p-6">
@@ -38,7 +43,7 @@ export function EquipmentCard({ equipment, onRent }: EquipmentCardProps) {
         </h3>
         
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="text-center p-2 bg-gray-50 rounded-md">
+          <div className="text-center p-3 bg-gray-50 rounded-md">
             <div className="flex items-center justify-center mb-1">
               <Clock className="h-4 w-4 mr-1 text-gray-500" />
               <span className="text-xs text-gray-500">12 Hours</span>
@@ -48,7 +53,7 @@ export function EquipmentCard({ equipment, onRent }: EquipmentCardProps) {
             </div>
           </div>
           
-          <div className="text-center p-2 bg-gray-50 rounded-md">
+          <div className="text-center p-3 bg-gray-50 rounded-md">
             <div className="flex items-center justify-center mb-1">
               <Calendar className="h-4 w-4 mr-1 text-gray-500" />
               <span className="text-xs text-gray-500">24 Hours</span>
@@ -59,7 +64,7 @@ export function EquipmentCard({ equipment, onRent }: EquipmentCardProps) {
           </div>
         </div>
 
-        {onRent && (
+        {showRentButton && onRent && (
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -2,56 +2,64 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
-import { Header } from './components/Header'
+import { Layout } from './components/Layout'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
-import { Register } from './pages/Register'
-import { Orders } from './pages/Orders'
-import { Admin } from './pages/Admin'
-import { Suggestions } from './pages/Suggestions'
-import { ProtectedRoute } from './components/ProtectedRoute'
+import { StaffDashboard } from './pages/StaffDashboard'
+import { AdminPanel } from './pages/AdminPanel'
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/suggestions" element={<Suggestions />} />
-            <Route
-              path="/orders"
-              element={
-                <ProtectedRoute>
-                  <Orders />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute staffOnly>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </div>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-          }}
-        />
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/staff"
+                element={
+                  <ProtectedRoute staffOnly>
+                    <StaffDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminPanel />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Layout>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                style: {
+                  background: '#10b981',
+                },
+              },
+              error: {
+                style: {
+                  background: '#ef4444',
+                },
+              },
+            }}
+          />
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   )
 }
 

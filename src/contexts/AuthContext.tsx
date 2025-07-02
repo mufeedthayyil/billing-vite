@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, User } from '../lib/supabase'
+import { supabase, User, db } from '../lib/supabase'
 import { Session } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
 
@@ -8,8 +8,10 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (name: string, email: string, password: string) => Promise<void>
+  signUp: (name: string, email: string, password: string, role: 'admin' | 'staff') => Promise<void>
   signOut: () => Promise<void>
+  updateProfile: (updates: Partial<User>) => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,19 +23,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        loadUserProfile(session.user.id)
-      } else {
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) {
+          console.error('Error getting session:', error)
+          return
+        }
+        
+        setSession(session)
+        if (session?.user) {
+          await loadUserProfile(session.user.id)
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error)
+      } finally {
         setLoading(false)
       }
-    })
+    }
+
+    getInitialSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id)
         setSession(session)
+        
         if (session?.user) {
           await loadUserProfile(session.user.id)
         } else {
@@ -48,18 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.error('Error loading user profile:', error)
-        setUser(null)
-      } else {
-        setUser(data)
-      }
+      setLoading(true)
+      const profile = await db.getUserProfile(userId)
+      setUser(profile)
     } catch (error) {
       console.error('Error loading user profile:', error)
       setUser(null)
@@ -69,47 +76,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+
+      if (data.user) {
+        await loadUserProfile(data.user.id)
+        toast.success('Signed in successfully!')
+      }
+    } catch (error) {
+      console.error('Sign in error:', error)
       throw error
     }
-
-    toast.success('Signed in successfully!')
   }
 
-  const signUp = async (name: string, email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
+  const signUp = async (name: string, email: string, password: string, role: 'admin' | 'staff') => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+          },
         },
-        emailRedirectTo: undefined, // Disable email confirmation
-      },
-    })
+      })
 
-    if (error) {
-      toast.error(error.message)
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+
+      if (data.user) {
+        toast.success('Account created successfully!')
+      }
+    } catch (error) {
+      console.error('Sign up error:', error)
       throw error
     }
-
-    // Since we disabled email confirmation, the user should be signed in immediately
-    toast.success('Account created successfully!')
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast.error(error.message)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+      
+      setUser(null)
+      setSession(null)
+      toast.success('Signed out successfully!')
+    } catch (error) {
+      console.error('Sign out error:', error)
       throw error
     }
-    toast.success('Signed out successfully!')
+  }
+
+  const updateProfile = async (updates: Partial<User>) => {
+    if (!user) throw new Error('No user logged in')
+    
+    try {
+      const updatedUser = await db.updateUser(user.id, updates)
+      setUser(updatedUser)
+      toast.success('Profile updated successfully!')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      toast.error('Failed to update profile')
+      throw error
+    }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (error) {
+        toast.error(error.message)
+        throw error
+      }
+
+      toast.success('Password updated successfully!')
+    } catch (error) {
+      console.error('Error updating password:', error)
+      throw error
+    }
   }
 
   const value = {
@@ -119,6 +180,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    updateProfile,
+    updatePassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
